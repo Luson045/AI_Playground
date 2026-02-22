@@ -1,4 +1,7 @@
-const API = '/api';
+// base URL for all backend requests. In production we read from a
+// Vite environment variable (set via VERCEL or `.env.local`), falling back
+// to the local `/api` path which is proxied during development.
+const API = import.meta.env.VITE_API_URL || '/api';
 
 export const FRIENDLY_ERROR = "Can't reach the server right now. Please try again in a moment.";
 
