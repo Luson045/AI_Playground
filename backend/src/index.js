@@ -9,6 +9,7 @@ import chatRoutes from './routes/chat.js';
 import analyticsRoutes from './routes/analytics.js';
 import userRoutes from './routes/users.js';
 import messageRoutes from './routes/messages.js';
+import ratingRoutes from './routes/ratings.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -22,6 +23,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/ratings', ratingRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 

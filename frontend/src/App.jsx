@@ -15,7 +15,8 @@ import ExplorePage from './pages/ExplorePage';
 import UserProfilePage from './pages/UserProfilePage';
 import MessagesPage from './pages/MessagesPage';
 import NotFoundPage from './pages/NotFoundPage';
-
+import { Analytics } from '@vercel/analytics/react';
+import RatingPopup from './components/RatingPopup';
 function AppRoutes() {
   const { user } = useAuth();
   return (
@@ -38,6 +39,7 @@ function AppRoutes() {
 function AppContent() {
   const location = useLocation();
   const showFooter = location.pathname !== '/chat';
+  const showRating = location.pathname !== '/login';
 
   return (
     <div className="app-layout">
@@ -46,6 +48,8 @@ function AppContent() {
         <AppRoutes />
         {showFooter && <Footer />}
       </main>
+      {showRating && <RatingPopup />}
+      <Analytics />
     </div>
   );
 }

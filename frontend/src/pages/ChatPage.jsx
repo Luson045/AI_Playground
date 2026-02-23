@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { chatSend, chatClick } from '../api/client';
+import { chatSend, chatClick, ratingCreate } from '../api/client';
 
 function getSessionId() {
   let s = sessionStorage.getItem('chatSessionId');
@@ -107,6 +107,7 @@ export default function ChatPage() {
           products: products || [],
           thinking: thinking || [],
           thinkingDismissed: false,
+          feedback: null,
         },
       ]);
     } catch (err) {
@@ -122,6 +123,25 @@ export default function ChatPage() {
       await chatClick(product._id, sessionId);
     } catch (_) {}
     if (product.link) window.open(product.link, '_blank');
+  };
+
+  const buildFeedbackComment = (idx) => {
+    const userMsg = [...messages]
+      .slice(0, idx)
+      .reverse()
+      .find((m) => m.role === 'user');
+    const userText = userMsg?.text || '';
+    const assistantText = messages[idx]?.text || '';
+    return `"""\n<user>: ${userText},\n<chat>: ${assistantText},\n"""`;
+  };
+
+  const handleFeedback = (idx, type) => {
+    setMessages((prev) =>
+      prev.map((m, i) => (i === idx ? { ...m, feedback: type } : m))
+    );
+    const star = type === 'up' ? 5 : 0;
+    const comment = buildFeedbackComment(idx);
+    ratingCreate({ star, comment, source: 'chat-feedback', sessionId }).catch(() => {});
   };
 
   return (
@@ -145,6 +165,28 @@ export default function ChatPage() {
               {(msg.role !== 'assistant' || !msg.thinking?.length || msg.thinkingDismissed) && (
                 <>
                   <div className="chat-bubble-text">{msg.text}</div>
+                  {msg.role === 'assistant' && (
+                    <div className="chat-feedback">
+                      <button
+                        type="button"
+                        className={`chat-feedback-btn ${msg.feedback === 'up' ? 'is-on' : ''}`}
+                        onClick={() => handleFeedback(i, 'up')}
+                        disabled={!!msg.feedback}
+                        aria-label="Thumbs up"
+                      >
+                        👍
+                      </button>
+                      <button
+                        type="button"
+                        className={`chat-feedback-btn ${msg.feedback === 'down' ? 'is-on' : ''}`}
+                        onClick={() => handleFeedback(i, 'down')}
+                        disabled={!!msg.feedback}
+                        aria-label="Thumbs down"
+                      >
+                        👎
+                      </button>
+                    </div>
+                  )}
                   {msg.products?.length > 0 && (
                     <div className="chat-products">
                       {msg.products.map((p) => (
@@ -220,6 +262,20 @@ export default function ChatPage() {
         .chat-product-seller { font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.1rem; }
         .chat-product-desc { font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .chat-product-price { font-size: 0.85rem; font-weight: 600; color: var(--accent); }
+        .chat-feedback { display: flex; gap: 0.35rem; margin-top: 0.35rem; }
+        .chat-feedback-btn {
+          background: var(--bg);
+          border: 1px solid var(--border);
+          color: var(--text);
+          font-size: 0.9rem;
+          padding: 0.25rem 0.45rem;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: border-color 0.15s, background 0.15s, transform 0.1s;
+        }
+        .chat-feedback-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+        .chat-feedback-btn.is-on { border-color: var(--accent); background: var(--surface-hover); }
+        .chat-feedback-btn:disabled { opacity: 0.55; cursor: default; }
         .chat-error { padding: 0.5rem 1rem; color: #ef4444; font-size: 0.85rem; }
         .chat-form { display: flex; gap: 0.5rem; padding: 1rem; border-top: 1px solid var(--border); }
         .chat-input { flex: 1; padding: 0.7rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 0.95rem; }

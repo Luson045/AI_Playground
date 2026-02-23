@@ -159,6 +159,16 @@ export async function chatClick(productId, sessionId = null) {
   return res.json();
 }
 
+export async function ratingCreate({ star, comment = '', source = 'popup', sessionId = null }) {
+  const res = await fetch(`${API}/ratings`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ star, comment, source, sessionId }),
+  });
+  if (!res.ok) return { ok: false };
+  return res.json();
+}
+
 export async function analyticsGet() {
   try {
     const res = await fetch(`${API}/analytics`, { headers: headers() });

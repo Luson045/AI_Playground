@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { productsList, productClick } from '../api/client';
 
-const SEARCH_DEBOUNCE_MS = 350;
+const PAGE_SIZE = 10;
 
 export default function MarketPage() {
   const [searchParams] = useSearchParams();
@@ -21,16 +21,23 @@ export default function MarketPage() {
 
   const [allCategories, setAllCategories] = useState([]);
   const categories = useMemo(() => ['', ...allCategories], [allCategories]);
-  const debounceRef = useRef(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loadMoreRef = useRef(null);
+  const sortedProducts = useMemo(() => {
+    const list = [...products];
+    list.sort((a, b) => {
+      if (sortBy === 'newest') return new Date(b.createdAt) - new Date(a.createdAt);
+      if (sortBy === 'price-asc') return (a.price || 0) - (b.price || 0);
+      if (sortBy === 'price-desc') return (b.price || 0) - (a.price || 0);
+      return 0;
+    });
+    return list;
+  }, [products, sortBy]);
 
-  useEffect(() => {
-    debounceRef.current = setTimeout(() => {
-      setSearchQuery(searchInput.trim());
-    }, SEARCH_DEBOUNCE_MS);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [searchInput]);
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setSearchQuery(searchInput.trim());
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +62,24 @@ export default function MarketPage() {
     return () => { cancelled = true; };
   }, [searchQuery, categoryFilter, sellerFilter]);
 
+  useEffect(() => {
+    setVisibleCount(Math.min(PAGE_SIZE, sortedProducts.length));
+  }, [sortedProducts.length, sortBy, searchQuery, categoryFilter, sellerFilter]);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, sortedProducts.length));
+      },
+      { rootMargin: '240px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [sortedProducts.length]);
+
   const handleClick = async (p) => {
     try {
       await productClick(p._id);
@@ -62,21 +87,16 @@ export default function MarketPage() {
     if (p.link) window.open(p.link, '_blank');
   };
 
-  const sortedProducts = [...products].sort((a, b) => {
-    if (sortBy === 'newest') return new Date(b.createdAt) - new Date(a.createdAt);
-    if (sortBy === 'price-asc') return (a.price || 0) - (b.price || 0);
-    if (sortBy === 'price-desc') return (b.price || 0) - (a.price || 0);
-    return 0;
-  });
-
   if (loading) return <div className="market-loading">Loading products…</div>;
+
+  const visibleProducts = sortedProducts.slice(0, visibleCount);
 
   return (
     <div className="market-page">
       <header className="market-header">
         <h1>Marketplace</h1>
         <p className="market-sub">Browse and discover products. Search by product or seller.</p>
-        <div className="market-toolbar">
+        <form className="market-toolbar" onSubmit={handleSearchSubmit}>
           <input
             type="search"
             className="market-search"
@@ -85,6 +105,9 @@ export default function MarketPage() {
             onChange={(e) => setSearchInput(e.target.value)}
             aria-label="Search"
           />
+          <button type="submit" className="btn btn-primary market-search-btn">
+            Search
+          </button>
           <select
             className="market-category"
             value={categoryFilter}
@@ -107,11 +130,11 @@ export default function MarketPage() {
             <option value="price-asc">Price: low to high</option>
             <option value="price-desc">Price: high to low</option>
           </select>
-        </div>
+        </form>
       </header>
 
       <div className="market-grid">
-        {sortedProducts.map((p) => {
+        {visibleProducts.map((p) => {
           const sellerId = p.userId?._id || p.userId;
           const sellerName = p.userId?.name || p.userId?.email || 'Seller';
           return (
@@ -154,6 +177,10 @@ export default function MarketPage() {
         })}
       </div>
 
+      <div ref={loadMoreRef} className="market-loadmore">
+        {sortedProducts.length > visibleCount ? 'Loading more…' : ''}
+      </div>
+
       {sellerFilter && (
         <p className="market-seller-filter">
           Showing products from this seller. <Link to="/market">Show all</Link>
@@ -161,8 +188,20 @@ export default function MarketPage() {
       )}
       {sortedProducts.length === 0 && (
         <div className="market-empty">
-          <p>{searchQuery || categoryFilter || sellerFilter ? 'No products match your filters.' : 'No products yet.'}</p>
-          <p className="market-empty-hint">{searchQuery || categoryFilter || sellerFilter ? 'Try a different search or category.' : 'Add products from the Upload page (log in first).'}</p>
+          <p>
+            {searchQuery
+              ? 'No such items, perhaps let your fellow sellers know about us :)'
+              : categoryFilter || sellerFilter
+                ? 'No products match your filters.'
+                : 'No products yet.'}
+          </p>
+          <p className="market-empty-hint">
+            {searchQuery
+              ? 'Try a different search or category.'
+              : categoryFilter || sellerFilter
+                ? 'Try a different search or category.'
+                : 'Add products from the Upload page (log in first).'}
+          </p>
         </div>
       )}
 
@@ -174,6 +213,7 @@ export default function MarketPage() {
         .market-toolbar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
         .market-search { flex: 1; min-width: 180px; padding: 0.5rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 0.9rem; }
         .market-search:focus { outline: none; border-color: var(--accent); }
+        .market-search-btn { padding: 0.5rem 0.85rem; }
         .market-category, .market-sort { padding: 0.5rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 0.9rem; cursor: pointer; }
         .market-count { font-size: 0.9rem; color: var(--text-muted); }
         .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem; }
@@ -194,6 +234,7 @@ export default function MarketPage() {
         .market-card-cta { font-size: 0.85rem; font-weight: 500; color: var(--accent); }
         .market-empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
         .market-empty-hint { margin-top: 0.5rem; font-size: 0.9rem; }
+        .market-loadmore { text-align: center; padding: 1rem 0; color: var(--text-muted); font-size: 0.85rem; }
         .market-seller-filter { font-size: 0.9rem; color: var(--text-muted); margin: 0 0 1rem; }
 .market-seller-filter a { color: var(--accent); }
 .market-loading, .market-error { padding: 2rem; text-align: center; }
