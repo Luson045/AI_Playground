@@ -8,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, location } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password required' });
     }
@@ -16,10 +16,10 @@ router.post('/register', async (req, res) => {
     if (existing) {
       return res.status(400).json({ error: 'Email already registered' });
     }
-    const user = await User.create({ email, password, name: name || '' });
+    const user = await User.create({ email, password, name: name || '', location: location || '' });
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({
-      user: { _id: user._id, email: user.email, name: user.name },
+      user: { _id: user._id, email: user.email, name: user.name, location: user.location || '' },
       token,
     });
   } catch (err) {
@@ -39,7 +39,7 @@ router.post('/login', async (req, res) => {
     }
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
     res.json({
-      user: { _id: user._id, email: user.email, name: user.name },
+      user: { _id: user._id, email: user.email, name: user.name, location: user.location || '' },
       token,
     });
   } catch (err) {

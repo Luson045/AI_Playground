@@ -2,6 +2,7 @@ import { genAI, CHAT_MODEL } from '../config/gemini.js';
 import { qdrant, COLLECTION_NAME } from '../config/qdrant.js';
 import { embedText } from './embedding.js';
 import Product from '../models/Product.js';
+import User from '../models/User.js';
 import { isGeminiRateLimit, isHfConfigured, hfChatCompletion } from './hfRouter.js';
 
 const SYSTEM_PROMPT = `You are a warm, persuasive product recommendation assistant. Your goal is to make the user curious and drawn to the products—without being pushy or explicitly selling.
@@ -65,12 +66,62 @@ async function searchOne(query, limit = 5) {
 }
 
 const RELEVANCE_THRESHOLD = 0.48;
+const LOCATION_SIM_THRESHOLD = 0.62;
+
+function cosineSimilarity(a = [], b = []) {
+  if (!a.length || !b.length || a.length !== b.length) return 0;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    const av = a[i] ?? 0;
+    const bv = b[i] ?? 0;
+    dot += av * bv;
+    normA += av * av;
+    normB += bv * bv;
+  }
+  if (!normA || !normB) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+function rankByLocation(products, userLocationVector, relevanceOrder) {
+  if (!userLocationVector || !userLocationVector.length) return products;
+  const scored = products.map((p) => {
+    const score = p.locationEmbedding?.length
+      ? cosineSimilarity(userLocationVector, p.locationEmbedding)
+      : 0;
+    return {
+      ...p,
+      _locationScore: score,
+      _isNearby: score >= LOCATION_SIM_THRESHOLD,
+      _relevanceRank: relevanceOrder.get(p.qdrantId) ?? 999,
+    };
+  });
+  scored.sort((a, b) => {
+    if (a._isNearby !== b._isNearby) return a._isNearby ? -1 : 1;
+    if (a._isNearby && b._isNearby) return (b._locationScore || 0) - (a._locationScore || 0);
+    return (a._relevanceRank || 999) - (b._relevanceRank || 999);
+  });
+  return scored.map(({ _locationScore, _isNearby, _relevanceRank, ...rest }) => rest);
+}
 
 /** Run search with query variations, merge by best score. Return only products above relevance threshold: if n>5 return top 5, else n. If none found, return latest 5. */
-export async function searchWithVariations(userMessage, limit = 5) {
+export async function searchWithVariations(userMessage, limit = 5, userId = null) {
   const thinking = [];
   const variations = await generateQueryVariations(userMessage);
   thinking.push({ type: 'variations', queries: variations });
+
+  let userLocationVector = null;
+  if (userId) {
+    try {
+      const user = await User.findById(userId).select('location').lean();
+      if (user?.location) {
+        userLocationVector = await embedText(String(user.location).trim());
+      }
+    } catch (_) {
+      userLocationVector = null;
+    }
+  }
 
   const seen = new Map();
   for (const q of variations) {
@@ -95,12 +146,15 @@ export async function searchWithVariations(userMessage, limit = 5) {
       .populate('userId', 'name email')
       .lean();
     const order = new Map(sorted.map((id, i) => [id, i]));
-    products.sort((a, b) => (order.get(a.qdrantId) ?? 99) - (order.get(b.qdrantId) ?? 99));
+    products = rankByLocation(products, userLocationVector, order);
   } else {
     thinking.push({ type: 'fallback', message: 'No matches found, showing latest products.' });
     isFallback = true;
-    products = await Product.find().sort({ createdAt: -1 }).limit(limit).lean();
+    const fallback = await Product.find().sort({ createdAt: -1 }).limit(limit * 2).lean();
+    const fallbackOrder = new Map(fallback.map((p, i) => [p.qdrantId, i]));
+    products = rankByLocation(fallback, userLocationVector, fallbackOrder);
   }
+  if (products.length > limit) products = products.slice(0, limit);
   thinking.push({ type: 'done', totalFound: products.length });
 
   return { products, thinking, isFallback };

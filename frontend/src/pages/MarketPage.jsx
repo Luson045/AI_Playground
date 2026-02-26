@@ -14,6 +14,7 @@ export default function MarketPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [sellerFilter, setSellerFilter] = useState(sellerFromUrl);
   const [sortBy, setSortBy] = useState('newest');
+  const [recommendations, setRecommendations] = useState([]);
 
   useEffect(() => {
     setSellerFilter(sellerFromUrl);
@@ -47,6 +48,12 @@ export default function MarketPage() {
         const list = await productsList({ q: searchQuery || undefined, category: categoryFilter || undefined, seller: sellerFilter || undefined });
         if (!cancelled) {
           setProducts(list);
+          if (searchQuery && list.length === 0) {
+            const recs = await productsList();
+            if (!cancelled) setRecommendations(recs.slice(0, 6));
+          } else {
+            setRecommendations([]);
+          }
           if (!searchQuery && !categoryFilter && !sellerFilter) {
             const set = new Set();
             list.forEach((p) => p.category && set.add(p.category.trim()));
@@ -205,6 +212,55 @@ export default function MarketPage() {
         </div>
       )}
 
+      {sortedProducts.length === 0 && recommendations.length > 0 && (
+        <div className="market-recs">
+          <h2>Recommended listings</h2>
+          <div className="market-grid">
+            {recommendations.map((p) => {
+              const sellerId = p.userId?._id || p.userId;
+              const sellerName = p.userId?.name || p.userId?.email || 'Seller';
+              return (
+                <article key={p._id} className="market-card">
+                  <a
+                    href={p.link || '#'}
+                    target={p.link ? '_blank' : undefined}
+                    rel={p.link ? 'noopener noreferrer' : undefined}
+                    className="market-card-link"
+                    onClick={(e) => {
+                      if (p.link) handleClick(p);
+                      else e.preventDefault();
+                    }}
+                  >
+                    <div className="market-card-image">
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt={p.name} loading="lazy" />
+                      ) : (
+                        <div className="market-card-placeholder">No image</div>
+                      )}
+                    </div>
+                    <div className="market-card-content">
+                      <h3 className="market-card-title">{p.name}</h3>
+                      {p.category && <span className="market-card-category">{p.category}</span>}
+                      <p className="market-card-desc">{(p.description || '').slice(0, 100)}{(p.description || '').length > 100 ? '…' : ''}</p>
+                      <div className="market-card-footer">
+                        <span className="market-card-price">${Number(p.price).toFixed(2)}</span>
+                        <span className="market-card-cta">View product</span>
+                      </div>
+                    </div>
+                  </a>
+                  {sellerId && (
+                    <Link to={`/explore/${sellerId}`} className="market-card-seller">
+                      by {sellerName}
+                    </Link>
+                  )}
+                  {!sellerId && <span className="market-card-seller">by {sellerName}</span>}
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <style>{`
         .market-page { padding: 0 0 2rem; max-width: 1400px; margin: 0 auto; }
         .market-header { margin-bottom: 1.5rem; }
@@ -237,9 +293,11 @@ export default function MarketPage() {
         .market-loadmore { text-align: center; padding: 1rem 0; color: var(--text-muted); font-size: 0.85rem; }
         .market-seller-filter { font-size: 0.9rem; color: var(--text-muted); margin: 0 0 1rem; }
 .market-seller-filter a { color: var(--accent); }
-.market-loading, .market-error { padding: 2rem; text-align: center; }
+        .market-loading, .market-error { padding: 2rem; text-align: center; }
         .market-loading { color: var(--text-muted); }
         .market-error { color: #ef4444; }
+        .market-recs { margin-top: 2rem; }
+        .market-recs h2 { font-size: 1.2rem; margin: 0 0 0.75rem; }
       `}</style>
     </div>
   );

@@ -48,9 +48,12 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [productVisibleCounts, setProductVisibleCounts] = useState({});
   const bottomRef = useRef(null);
   const sessionId = useRef(getSessionId()).current;
   const thinkingTimerRef = useRef(null);
+  const INITIAL_PRODUCT_COUNT = 6;
+  const PRODUCT_STEP = 6;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,6 +64,20 @@ export default function ChatPage() {
       if (thinkingTimerRef.current) clearTimeout(thinkingTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    setProductVisibleCounts((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      messages.forEach((m, idx) => {
+        if (m.role === 'assistant' && m.products?.length && next[idx] == null) {
+          next[idx] = Math.min(INITIAL_PRODUCT_COUNT, m.products.length);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [messages]);
 
   const dismissThinkingForLastAssistant = () => {
     setMessages((prev) => {
@@ -123,6 +140,18 @@ export default function ChatPage() {
       await chatClick(product._id, sessionId);
     } catch (_) {}
     if (product.link) window.open(product.link, '_blank');
+  };
+
+  const handleProductsScroll = (idx, e) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight > 80) return;
+    setProductVisibleCounts((prev) => {
+      const current = prev[idx] ?? INITIAL_PRODUCT_COUNT;
+      const total = messages[idx]?.products?.length || 0;
+      const nextCount = Math.min(current + PRODUCT_STEP, total);
+      if (nextCount === current) return prev;
+      return { ...prev, [idx]: nextCount };
+    });
   };
 
   const buildFeedbackComment = (idx) => {
@@ -188,8 +217,8 @@ export default function ChatPage() {
                     </div>
                   )}
                   {msg.products?.length > 0 && (
-                    <div className="chat-products">
-                      {msg.products.map((p) => (
+                    <div className="chat-products" onScroll={(e) => handleProductsScroll(i, e)}>
+                      {msg.products.slice(0, productVisibleCounts[i] ?? INITIAL_PRODUCT_COUNT).map((p) => (
                         <button
                           key={p._id}
                           type="button"
@@ -207,6 +236,9 @@ export default function ChatPage() {
                           </div>
                         </button>
                       ))}
+                      {msg.products.length > (productVisibleCounts[i] ?? INITIAL_PRODUCT_COUNT) && (
+                        <div className="chat-products-more">Scroll for more</div>
+                      )}
                     </div>
                   )}
                 </>
@@ -253,8 +285,8 @@ export default function ChatPage() {
         .chat-thinking-label { font-weight: 600; color: var(--text); }
         .chat-thinking ul { margin: 0.25rem 0 0 1rem; padding: 0; }
         .chat-thinking-search, .chat-thinking-fallback, .chat-thinking-done { display: block; margin-top: 0.25rem; }
-        .chat-products { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.75rem; }
-        .chat-product-card { display: flex; gap: 0.75rem; align-items: center; padding: 0.65rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); text-align: left; color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; max-width: 320px; }
+        .chat-products { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; max-height: 360px; overflow-y: auto; padding-right: 0.35rem; }
+        .chat-product-card { display: flex; gap: 0.75rem; align-items: center; padding: 0.65rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); text-align: left; color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; width: 100%; }
         .chat-product-card:hover { border-color: var(--accent); background: var(--surface-hover); }
         .chat-product-img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; }
         .chat-product-info { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
@@ -262,6 +294,7 @@ export default function ChatPage() {
         .chat-product-seller { font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.1rem; }
         .chat-product-desc { font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .chat-product-price { font-size: 0.85rem; font-weight: 600; color: var(--accent); }
+        .chat-products-more { grid-column: 1 / -1; text-align: center; font-size: 0.8rem; color: var(--text-muted); padding: 0.25rem 0 0.5rem; }
         .chat-feedback { display: flex; gap: 0.35rem; margin-top: 0.35rem; }
         .chat-feedback-btn {
           background: var(--bg);

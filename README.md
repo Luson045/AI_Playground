@@ -40,8 +40,8 @@ Runs at `http://localhost:3000` and proxies `/api` to the backend.
 
 ## Features
 
-1. **Auth** — Register / log in (JWT).
-2. **Upload** — Sellers add products (name, description, category, price, image URL, link). Stored in MongoDB and embedded in Qdrant for semantic search.
+1. **Auth** — Register / log in (JWT). Location is captured on signup to improve nearby matching.
+2. **Upload** — Sellers add products (name, description, category, price, image URL or upload, link). Stored in MongoDB and embedded in Qdrant for semantic search.
 3. **Chat (primary page)** — Users describe what they need; the bot recommends products from the vector search and uses Gemini for natural replies. Product cards in chat are clickable; clicks are recorded.
 4. **Market** — Browse all products; “View” opens the product link and records a market click.
 5. **Dashboard** — Logged-in users see analytics: total products, total clicks, and per-product breakdown (from chat vs market).
@@ -56,3 +56,11 @@ Runs at `http://localhost:3000` and proxies `/api` to the backend.
 | QDRANT_API_KEY     | Qdrant API key (for Cloud) |
 | GEMINI_API_KEY     | Google Gemini API key |
 | JWT_SECRET         | Secret for JWT signing |
+
+## Environment (frontend)
+
+| Variable                          | Description |
+|-----------------------------------|-------------|
+| VITE_API_URL                      | Backend base URL (optional in dev) |
+| VITE_CLOUDINARY_CLOUD_NAME        | Cloudinary cloud name for uploads |
+| VITE_CLOUDINARY_UPLOAD_PRESET     | Unsigned upload preset name |

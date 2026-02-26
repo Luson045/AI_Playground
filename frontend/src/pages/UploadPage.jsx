@@ -9,7 +9,11 @@ export default function UploadPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [imageMode, setImageMode] = useState('url');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -39,9 +43,35 @@ export default function UploadPage() {
     return () => { cancelled = true; };
   }, [user, authLoading, navigate]);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
+  };
+
+  const uploadToCloudinary = async (file) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    if (!cloudName || !preset) {
+      throw new Error('Cloudinary is not configured. Add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.');
+    }
+    const body = new FormData();
+    body.append('file', file);
+    body.append('upload_preset', preset);
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.error?.message || 'Image upload failed.');
+    }
+    return data.secure_url || data.url || '';
   };
 
   const handleSubmit = async (e) => {
@@ -53,20 +83,34 @@ export default function UploadPage() {
     setError(null);
     setSubmitting(true);
     try {
+      let finalImageUrl = form.imageUrl.trim();
+      if (imageMode === 'upload') {
+        if (!imageFile) {
+          setError('Please choose an image to upload.');
+          setSubmitting(false);
+          return;
+        }
+        setImageUploading(true);
+        finalImageUrl = await uploadToCloudinary(imageFile);
+        setImageUploading(false);
+      }
       const created = await productCreate({
         name: form.name.trim(),
         description: form.description.trim(),
         category: form.category.trim(),
         price: Number(form.price),
-        imageUrl: form.imageUrl.trim(),
+        imageUrl: finalImageUrl,
         link: form.link.trim(),
       });
       setProducts((prev) => [created, ...prev]);
       setForm({ name: '', description: '', category: '', price: '', imageUrl: '', link: '' });
+      setImageFile(null);
+      setImagePreview('');
     } catch (err) {
       setError(err.message);
     } finally {
       setSubmitting(false);
+      setImageUploading(false);
     }
   };
 
@@ -106,8 +150,43 @@ export default function UploadPage() {
             <input type="number" name="price" value={form.price} onChange={handleChange} min="0" step="0.01" required />
           </div>
           <div className="input-group">
-            <label>Image URL</label>
-            <input name="imageUrl" value={form.imageUrl} onChange={handleChange} placeholder="https://…" />
+            <label>Image</label>
+            <div className="upload-toggle">
+              <button
+                type="button"
+                className={`upload-toggle-btn ${imageMode === 'upload' ? 'is-on' : ''}`}
+                onClick={() => setImageMode('upload')}
+              >
+                Upload
+              </button>
+              <button
+                type="button"
+                className={`upload-toggle-btn ${imageMode === 'url' ? 'is-on' : ''}`}
+                onClick={() => setImageMode('url')}
+              >
+                Use URL
+              </button>
+            </div>
+            {imageMode === 'url' && (
+              <input name="imageUrl" value={form.imageUrl} onChange={handleChange} placeholder="https://…" />
+            )}
+            {imageMode === 'upload' && (
+              <>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setImageFile(file);
+                    setImagePreview(file ? URL.createObjectURL(file) : '');
+                  }}
+                />
+                {imagePreview && (
+                  <img src={imagePreview} alt="" className="upload-preview" />
+                )}
+                {imageUploading && <span className="muted">Uploading image…</span>}
+              </>
+            )}
           </div>
           <div className="input-group">
             <label>Product link</label>
@@ -158,6 +237,10 @@ export default function UploadPage() {
         .upload-item-img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
         .upload-item-main strong { display: block; font-size: 0.95rem; }
         .upload-item-price { font-size: 0.85rem; color: var(--accent); }
+        .upload-toggle { display: inline-flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .upload-toggle-btn { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.85rem; cursor: pointer; }
+        .upload-toggle-btn.is-on { border-color: var(--accent); color: var(--accent); background: var(--surface-hover); }
+        .upload-preview { margin-top: 0.5rem; width: 100%; max-width: 220px; border-radius: 10px; border: 1px solid var(--border); object-fit: cover; }
         .muted { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
       `}</style>
     </div>

@@ -9,6 +9,8 @@ const productSchema = new mongoose.Schema(
     price: { type: Number, required: true, min: 0 },
     imageUrl: { type: String, trim: true },
     link: { type: String, trim: true },
+    location: { type: String, trim: true, default: '' },
+    locationEmbedding: { type: [Number], default: [] },
     qdrantId: { type: String },
   },
   { timestamps: true }

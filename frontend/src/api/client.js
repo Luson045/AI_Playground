@@ -30,12 +30,12 @@ function friendlyError(err, fallback = FRIENDLY_ERROR) {
   return fallback;
 }
 
-export async function authRegister(email, password, name = '') {
+export async function authRegister(email, password, name = '', location = '') {
   try {
     const res = await fetch(`${API}/auth/register`, {
       method: 'POST',
       headers: headers(false),
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, name, location }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Registration failed');

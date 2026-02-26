@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
     password: { type: String, required: true, minlength: 6 },
     name: { type: String, trim: true },
+    location: { type: String, trim: true, default: '' },
     bio: { type: String, trim: true, default: '' },
     avatar: { type: String, trim: true, default: '' },
   },

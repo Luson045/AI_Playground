@@ -2,6 +2,7 @@ import express from 'express';
 import { authMiddleware, optionalAuth } from '../middleware/auth.js';
 import Product from '../models/Product.js';
 import Click from '../models/Click.js';
+import User from '../models/User.js';
 import { qdrant, COLLECTION_NAME } from '../config/qdrant.js';
 import { embedText } from '../services/embedding.js';
 import { randomUUID } from 'crypto';
@@ -18,43 +19,24 @@ router.get('/', async (req, res) => {
     if (seller && String(seller).trim()) {
       query.userId = String(seller).trim();
     }
-    let products = await Product.find(query)
+    if (q && String(q).trim()) {
+      const searchTerm = String(q).trim();
+      const regex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const users = await User.find({
+        $or: [{ name: regex }, { email: regex }],
+      }).select('_id');
+      const userIds = users.map((u) => u._id);
+      query.$or = [
+        { name: regex },
+        { description: regex },
+        { category: regex },
+        ...(userIds.length ? [{ userId: { $in: userIds } }] : []),
+      ];
+    }
+    const products = await Product.find(query)
       .populate('userId', 'name email')
       .sort({ createdAt: -1 })
       .lean();
-    if (q && String(q).trim()) {
-      const searchTerm = String(q).trim();
-      const textLower = searchTerm.toLowerCase();
-      let byText = products.filter(
-        (p) =>
-          (p.name && p.name.toLowerCase().includes(textLower)) ||
-          (p.description && p.description.toLowerCase().includes(textLower)) ||
-          (p.category && p.category.toLowerCase().includes(textLower)) ||
-          (p.userId && (p.userId.name || '').toLowerCase().includes(textLower)) ||
-          (p.userId && (p.userId.email || '').toLowerCase().includes(textLower))
-      );
-      try {
-        const { searchProductsByQuery } = await import('../services/chat.js');
-        const semantic = await searchProductsByQuery(searchTerm, 50);
-        const semanticIds = new Set(semantic.map((p) => String(p._id)));
-        byText = products.filter(
-          (p) =>
-            semanticIds.has(String(p._id)) ||
-            (p.name && p.name.toLowerCase().includes(textLower)) ||
-            (p.description && p.description.toLowerCase().includes(textLower)) ||
-            (p.category && p.category.toLowerCase().includes(textLower)) ||
-            (p.userId && (p.userId.name || '').toLowerCase().includes(textLower)) ||
-            (p.userId && (p.userId.email || '').toLowerCase().includes(textLower))
-        );
-        const orderMap = new Map(semantic.map((p, i) => [String(p._id), i]));
-        if (byText.length > 0) {
-          byText.sort((a, b) => (orderMap.get(String(a._id)) ?? 999) - (orderMap.get(String(b._id)) ?? 999));
-        }
-      } catch (_) {
-        /* semantic search failed; byText already has text-matched results */
-      }
-      if (byText.length > 0) products = byText;
-    }
     res.json(products);
   } catch (err) {
     console.error('Products list error:', err);
@@ -77,8 +59,17 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!name || !description || price == null) {
       return res.status(400).json({ error: 'Name, description, and price required' });
     }
+    const sellerLocation = (req.user?.location || '').trim();
     const textForEmbedding = [name, description, category].filter(Boolean).join(' ');
     const vector = await embedText(textForEmbedding);
+    let locationEmbedding = [];
+    if (sellerLocation) {
+      try {
+        locationEmbedding = await embedText(sellerLocation);
+      } catch (_) {
+        locationEmbedding = [];
+      }
+    }
     const qdrantId = randomUUID();
     await qdrant.upsert(COLLECTION_NAME, {
       wait: true,
@@ -98,6 +89,8 @@ router.post('/', authMiddleware, async (req, res) => {
       price: Number(price),
       imageUrl: imageUrl || '',
       link: link || '',
+      location: sellerLocation,
+      locationEmbedding,
       qdrantId,
     });
     await qdrant.setPayload(COLLECTION_NAME, {

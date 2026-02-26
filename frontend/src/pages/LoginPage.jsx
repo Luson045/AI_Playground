@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [location, setLocation] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export default function LoginPage() {
       if (mode === 'login') {
         await login(email, password);
       } else {
-        await register(email, password, name);
+        await register(email, password, name, location);
       }
       navigate('/chat', { replace: true });
     } catch (err) {
@@ -49,6 +50,18 @@ export default function LoginPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your name"
+              />
+            </div>
+          )}
+          {mode === 'register' && (
+            <div className="input-group">
+              <label>Location</label>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="City, Area, Country"
+                required
               />
             </div>
           )}
@@ -85,6 +98,7 @@ export default function LoginPage() {
             onClick={() => {
               setMode(mode === 'login' ? 'register' : 'login');
               setError(null);
+              if (mode === 'login') setLocation('');
             }}
           >
             {mode === 'login' ? 'Sign up' : 'Log in'}

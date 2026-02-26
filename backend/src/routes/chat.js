@@ -4,7 +4,7 @@ import { chatWithRecommendations, searchWithVariations } from '../services/chat.
 import Click from '../models/Click.js';
 
 const router = express.Router();
-const TOP_N = 5;
+const TOP_N = 24;
 
 const FRIENDLY_ERROR = "Can't reach the server right now. Please try again in a moment.";
 
@@ -15,7 +15,7 @@ router.post('/', optionalAuth, async (req, res) => {
       return res.status(400).json({ error: 'Message is required.' });
     }
     const trimmed = message.trim();
-    const { products, thinking, isFallback } = await searchWithVariations(trimmed, TOP_N);
+    const { products, thinking, isFallback } = await searchWithVariations(trimmed, TOP_N, req.user?._id || null);
     const reply = await chatWithRecommendations(
       trimmed,
       products,
