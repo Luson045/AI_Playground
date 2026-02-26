@@ -10,6 +10,8 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [imageCompressing, setImageCompressing] = useState(false);
+  const [compressionNote, setCompressionNote] = useState('');
   const [error, setError] = useState(null);
   const [imageMode, setImageMode] = useState('url');
   const [imageFile, setImageFile] = useState(null);
@@ -54,6 +56,41 @@ export default function UploadPage() {
     setForm((f) => ({ ...f, [name]: value }));
   };
 
+  const compressImage = async (file) => {
+    const maxDimension = 1600;
+    const quality = 0.82;
+    const outputType =
+      file.type === 'image/jpeg' || file.type === 'image/webp'
+        ? file.type
+        : 'image/webp';
+
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Image compression failed.');
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    if (typeof bitmap.close === 'function') bitmap.close();
+
+    let blob = await new Promise((resolve) => canvas.toBlob(resolve, outputType, quality));
+    if (!blob && outputType !== 'image/jpeg') {
+      blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    }
+    if (!blob) throw new Error('Image compression failed.');
+
+    const finalType = blob.type || outputType;
+    const nameBase = file.name.replace(/\.[^.]+$/, '');
+    const ext = finalType === 'image/jpeg' ? 'jpg' : finalType === 'image/webp' ? 'webp' : 'png';
+    const compressedFile = new File([blob], `${nameBase}.${ext}`, { type: finalType });
+
+    return blob.size < file.size ? compressedFile : file;
+  };
+
   const uploadToCloudinary = async (file) => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
     const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
@@ -90,8 +127,19 @@ export default function UploadPage() {
           setSubmitting(false);
           return;
         }
+        setImageCompressing(true);
+        const beforeSize = imageFile.size;
+        const optimizedFile = await compressImage(imageFile);
+        setImageCompressing(false);
         setImageUploading(true);
-        finalImageUrl = await uploadToCloudinary(imageFile);
+        finalImageUrl = await uploadToCloudinary(optimizedFile);
+        const afterSize = optimizedFile.size;
+        if (afterSize < beforeSize) {
+          const savedPct = Math.round(((beforeSize - afterSize) / beforeSize) * 100);
+          setCompressionNote(`Compressed ${Math.round(beforeSize / 1024)}KB → ${Math.round(afterSize / 1024)}KB (${savedPct}% smaller).`);
+        } else {
+          setCompressionNote('Compression skipped (original was already optimal).');
+        }
         setImageUploading(false);
       }
       const created = await productCreate({
@@ -111,6 +159,7 @@ export default function UploadPage() {
     } finally {
       setSubmitting(false);
       setImageUploading(false);
+      setImageCompressing(false);
     }
   };
 
@@ -179,12 +228,17 @@ export default function UploadPage() {
                     const file = e.target.files?.[0] || null;
                     setImageFile(file);
                     setImagePreview(file ? URL.createObjectURL(file) : '');
+                    setCompressionNote('');
                   }}
                 />
                 {imagePreview && (
                   <img src={imagePreview} alt="" className="upload-preview" />
                 )}
+                {imageCompressing && <span className="muted">Compressing image…</span>}
                 {imageUploading && <span className="muted">Uploading image…</span>}
+                {!imageCompressing && !imageUploading && compressionNote && (
+                  <span className="muted">{compressionNote}</span>
+                )}
               </>
             )}
           </div>
