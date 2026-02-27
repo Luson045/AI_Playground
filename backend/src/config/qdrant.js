@@ -13,15 +13,21 @@ export const COLLECTION_NAME = process.env.QDRANT_COLLECTION || 'products';
 export const VECTOR_SIZE = 768; // Gemini embedding dimension for text-embedding-004
 
 export async function ensureCollection() {
-  const collections = await qdrant.getCollections();
-  const exists = collections.collections.some((c) => c.name === COLLECTION_NAME);
-  if (!exists) {
-    await qdrant.createCollection(COLLECTION_NAME, {
-      vectors: {
-        size: VECTOR_SIZE,
-        distance: 'Cosine',
-      },
-    });
-    console.log('Qdrant collection created:', COLLECTION_NAME);
+  try {
+    const collections = await qdrant.getCollections();
+    const exists = collections.collections.some((c) => c.name === COLLECTION_NAME);
+    if (!exists) {
+      await qdrant.createCollection(COLLECTION_NAME, {
+        vectors: {
+          size: VECTOR_SIZE,
+          distance: 'Cosine',
+        },
+      });
+      console.log('Qdrant collection created:', COLLECTION_NAME);
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error('Qdrant unavailable, continuing without vector search:', err.message || err);
+    return { ok: false, error: err };
   }
 }

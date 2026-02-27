@@ -134,12 +134,12 @@ export async function productClick(id) {
   return res.json();
 }
 
-export async function chatSend(message, history = [], sessionId = null) {
+export async function chatSend(message, history = [], sessionId = null, contextProducts = []) {
   try {
     const res = await fetch(`${API}/chat`, {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ message, history, sessionId }),
+      body: JSON.stringify({ message, history, sessionId, contextProducts }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || FRIENDLY_ERROR);

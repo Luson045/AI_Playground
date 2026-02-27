@@ -56,7 +56,7 @@ export default function LandingPage() {
         <Link to="/login" className="btn btn-primary">Log in or sign up</Link>
       </section>
       <style>{`
-        .landing { padding: 2rem 0 4rem; max-width: 920px; margin: 0 auto; }
+        .landing { padding: 2rem 1.25rem 4rem; max-width: 1080px; margin: 0 auto; }
         .landing-hero { text-align: center; padding: 2rem 0 3.5rem; }
         .landing-logo-wrap { margin-bottom: 0.5rem; }
         .landing-logo { width: 80px; height: 80px; object-fit: contain; }
@@ -67,7 +67,7 @@ export default function LandingPage() {
         .landing-cta { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
         .landing-btn { padding: 0.85rem 1.75rem; font-size: 1rem; font-weight: 600; }
         .landing-btn-primary { box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35); }
-        .landing-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin: 3rem 0; }
+        .landing-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin: 2.5rem 0; }
         .landing-feature { text-align: center; padding: 2rem 1.5rem; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); transition: border-color 0.2s, box-shadow 0.2s; }
         .landing-feature:hover { border-color: var(--accent); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
         .landing-feature-icon { width: 48px; height: 48px; margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; color: var(--accent); }
@@ -75,6 +75,19 @@ export default function LandingPage() {
         .landing-feature p { font-size: 0.95rem; color: var(--text-muted); margin: 0; line-height: 1.55; }
         .landing-cta-block { text-align: center; padding: 2.5rem 2rem; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); }
         .landing-cta-block p { margin: 0 0 1rem; font-size: 1.05rem; color: var(--text-muted); }
+        @media (max-width: 720px) {
+          .landing { padding: 1.5rem 1rem 3rem; }
+          .landing-hero { padding: 1.5rem 0 2.5rem; }
+        }
+        @media (max-width: 480px) {
+          .landing-title { font-size: clamp(1.7rem, 7vw, 2.2rem); }
+          .landing-lead { font-size: 1rem; }
+          .landing-btn { padding: 0.75rem 1.25rem; font-size: 0.95rem; }
+          .landing-feature { padding: 1.5rem 1.1rem; }
+          .landing-feature h3 { font-size: 1.05rem; }
+          .landing-feature p { font-size: 0.9rem; }
+          .landing-cta-block { padding: 2rem 1.25rem; }
+        }
       `}</style>
     </div>
   );

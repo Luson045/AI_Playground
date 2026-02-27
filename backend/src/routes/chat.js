@@ -5,23 +5,103 @@ import Click from '../models/Click.js';
 
 const router = express.Router();
 const TOP_N = 24;
+const CHAT_TOP_N = 5;
 
 const FRIENDLY_ERROR = "Can't reach the server right now. Please try again in a moment.";
 
 router.post('/', optionalAuth, async (req, res) => {
   try {
-    const { message, history = [], sessionId } = req.body;
+    const { message, history = [], sessionId, contextProducts = [] } = req.body;
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message is required.' });
     }
     const trimmed = message.trim();
-    const { products, thinking, isFallback } = await searchWithVariations(trimmed, TOP_N, req.user?._id || null);
+    const normalizeContextProducts = (list) =>
+      Array.isArray(list)
+        ? list.map((p) => ({
+          _id: p._id,
+          name: p.name,
+          description: p.description,
+          category: p.category,
+          price: p.price,
+          imageUrl: p.imageUrl,
+          link: p.link,
+          userId: { name: p.sellerName || p.userId?.name || p.userId?.email || 'Seller' },
+        }))
+        : [];
+
+    const parsePriceFilter = (text) => {
+      const lower = text.toLowerCase();
+      const nums = lower.match(/\d+(\.\d+)?/g)?.map((n) => Number(n)) || [];
+      if (/(cheapest|lowest|least|most affordable)/i.test(lower)) return { type: 'cheapest' };
+      if (/between/i.test(lower) && nums.length >= 2) {
+        return { type: 'range', min: Math.min(nums[0], nums[1]), max: Math.max(nums[0], nums[1]) };
+      }
+      if (/(under|below|less than|within)/i.test(lower) && nums.length >= 1) {
+        return { type: 'max', max: nums[0] };
+      }
+      if (/(over|above|more than|at least)/i.test(lower) && nums.length >= 1) {
+        return { type: 'min', min: nums[0] };
+      }
+      return null;
+    };
+
+    const applyPriceFilter = (list, filter) => {
+      if (!filter || !Array.isArray(list) || list.length === 0) return list;
+      const items = list
+        .map((p) => ({ ...p, _price: Number(p.price) }))
+        .filter((p) => Number.isFinite(p._price));
+      if (items.length === 0) return list;
+      if (filter.type === 'cheapest') {
+        items.sort((a, b) => a._price - b._price);
+        return [items[0]];
+      }
+      if (filter.type === 'range') return items.filter((p) => p._price >= filter.min && p._price <= filter.max);
+      if (filter.type === 'max') return items.filter((p) => p._price <= filter.max);
+      if (filter.type === 'min') return items.filter((p) => p._price >= filter.min);
+      return items;
+    };
+
+    const priceFilter = parsePriceFilter(trimmed);
+    let products = [];
+    let thinking = [];
+    let isFallback = false;
+
+    if (priceFilter && Array.isArray(contextProducts) && contextProducts.length) {
+      const normalized = normalizeContextProducts(contextProducts);
+      const filtered = applyPriceFilter(normalized, priceFilter);
+      if (filtered.length > 0) {
+        products = filtered.slice(0, TOP_N);
+        thinking = [{ type: 'filter', message: 'Filtered from previous results.' }, { type: 'done', totalFound: products.length }];
+      }
+    }
+
+    if (products.length === 0) {
+      const searchResult = await searchWithVariations(
+        trimmed,
+        TOP_N,
+        req.user?._id || null,
+        history.map((h) => ({ role: h.role, text: h.text }))
+      );
+      products = searchResult.products;
+      thinking = searchResult.thinking;
+      isFallback = searchResult.isFallback;
+    }
+    if (products.length > TOP_N) products = products.slice(0, TOP_N);
+    const topForChat = products.slice(0, CHAT_TOP_N);
     const reply = await chatWithRecommendations(
       trimmed,
-      products,
+      topForChat,
       history.map((h) => ({ role: h.role, text: h.text })),
       isFallback
     );
+    const topOrder = new Map(topForChat.map((p, i) => [String(p._id), i]));
+    products = products.slice().sort((a, b) => {
+      const aRank = topOrder.has(String(a._id)) ? topOrder.get(String(a._id)) : 999;
+      const bRank = topOrder.has(String(b._id)) ? topOrder.get(String(b._id)) : 999;
+      if (aRank !== bRank) return aRank - bRank;
+      return 0;
+    });
     res.json({
       reply,
       products: products.map((p) => ({

@@ -168,7 +168,7 @@ export default function MarketPage() {
                   {p.category && <span className="market-card-category">{p.category}</span>}
                   <p className="market-card-desc">{(p.description || '').slice(0, 100)}{(p.description || '').length > 100 ? '…' : ''}</p>
                   <div className="market-card-footer">
-                    <span className="market-card-price">${Number(p.price).toFixed(2)}</span>
+                    <span className="market-card-price">₹{Number(p.price).toFixed(2)}</span>
                     <span className="market-card-cta">View product</span>
                   </div>
                 </div>
@@ -243,7 +243,7 @@ export default function MarketPage() {
                       {p.category && <span className="market-card-category">{p.category}</span>}
                       <p className="market-card-desc">{(p.description || '').slice(0, 100)}{(p.description || '').length > 100 ? '…' : ''}</p>
                       <div className="market-card-footer">
-                        <span className="market-card-price">${Number(p.price).toFixed(2)}</span>
+                        <span className="market-card-price">₹{Number(p.price).toFixed(2)}</span>
                         <span className="market-card-cta">View product</span>
                       </div>
                     </div>

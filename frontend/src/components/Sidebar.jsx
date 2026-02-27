@@ -175,6 +175,7 @@ export default function Sidebar() {
           .theme-toggle { margin-bottom: 0.25rem; }
           @media (max-width: 899px) {
             .sidebar-mobile-toggle { display: flex; }
+            .sidebar-mobile-toggle { left: auto; right: 0.75rem; }
             .sidebar { width: 280px; transform: translateX(-100%); }
             .sidebar.mobile-open { transform: translateX(0); }
             .sidebar.collapsed { width: 280px; }

@@ -188,7 +188,14 @@ export default function UploadPage() {
           </div>
           <div className="input-group">
             <label>Description *</label>
-            <textarea name="description" value={form.description} onChange={handleChange} required />
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Add keywords: brand, model, materials, size, condition, use-cases, included items, and standout features."
+              required
+            />
+            <p className="muted">Tip: Detailed, keyword-rich descriptions rank higher in search.</p>
           </div>
           <div className="input-group">
             <label>Category</label>
@@ -262,7 +269,7 @@ export default function UploadPage() {
                     {p.imageUrl && <img src={p.imageUrl} alt="" className="upload-item-img" />}
                     <div>
                       <strong>{p.name}</strong>
-                      <span className="upload-item-price">${Number(p.price).toFixed(2)}</span>
+                      <span className="upload-item-price">₹{Number(p.price).toFixed(2)}</span>
                     </div>
                   </div>
                   <button type="button" className="btn btn-ghost" onClick={() => handleDelete(p._id)}>
