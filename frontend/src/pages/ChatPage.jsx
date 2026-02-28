@@ -232,7 +232,7 @@ export default function ChatPage() {
         <h1>What are you looking for?</h1>
         <p>Describe your need and get product recommendations.</p>
       </div>
-      <div className="chat-container card">
+      <div className="chat-container">
         <div className="chat-messages">
           {messages.length === 0 && (
             <div className="chat-placeholder">
@@ -334,12 +334,12 @@ export default function ChatPage() {
         </form>
       </div>
       <style>{`
-        .chat-page { padding: 0.75rem 0 1rem; display: flex; flex-direction: column; min-height: 100%; flex: 1; }
+        .chat-page { padding: 0.75rem 0 1rem; display: flex; flex-direction: column; min-height: 100vh; flex: 1; }
         .chat-hero { text-align: center; margin-bottom: 1.25rem; }
         .chat-hero h1 { font-size: clamp(1.5rem, 2.6vw, 2rem); font-weight: 700; margin: 0 0 0.35rem; letter-spacing: -0.02em; }
         .chat-hero p { color: var(--text-muted); margin: 0; font-size: 0.95rem; }
-        .chat-container { display: flex; flex-direction: column; flex: 1; min-height: 0; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: relative; }
-        .chat-messages { flex: 1; overflow-y: auto; padding: 1.25rem; padding-bottom: 5.5rem; display: flex; flex-direction: column; gap: 1rem; }
+        .chat-container { display: flex; flex-direction: column; flex: 1; min-height: 0; position: relative; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 1.25rem 1.25rem 6.5rem; display: flex; flex-direction: column; gap: 1rem; }
         .chat-placeholder { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 1.5rem; }
         .chat-bubble { max-width: min(88%, 640px); align-self: flex-start; }
         .chat-bubble.user { align-self: flex-end; }
@@ -382,13 +382,14 @@ export default function ChatPage() {
           display: flex;
           gap: 0.6rem;
           padding: 0.45rem;
-          margin: 0 1rem 1rem;
+          margin: 0 1rem max(0.75rem, env(safe-area-inset-bottom));
           border: 1px solid var(--border);
           border-radius: 999px;
           background: var(--surface);
           box-shadow: 0 12px 28px rgba(0,0,0,0.22);
           position: sticky;
-          bottom: 1rem;
+          bottom: max(0.75rem, env(safe-area-inset-bottom));
+          z-index: 2;
         }
         .chat-input { flex: 1; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 999px; color: var(--text); font-size: 0.98rem; }
         .chat-input:focus { outline: none; border-color: var(--accent); }
@@ -403,10 +404,10 @@ export default function ChatPage() {
             border-radius: 0;
             box-shadow: none;
           }
-          .chat-messages { padding: 0.75rem 0.9rem; padding-bottom: 6.25rem; gap: 0.85rem; }
+          .chat-messages { padding: 0.75rem 0.9rem 6.5rem; gap: 0.85rem; }
           .chat-bubble { max-width: 96%; }
           .chat-bubble-text { font-size: 0.98rem; padding: 0.75rem 0.95rem; }
-          .chat-form { margin: 0 0.75rem 0.9rem; }
+          .chat-form { margin: 0 0.75rem max(0.75rem, env(safe-area-inset-bottom)); }
           .chat-input { font-size: 1rem; }
           .chat-products { height: 200px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
         }
