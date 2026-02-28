@@ -101,12 +101,12 @@ export default function Sidebar() {
           <div className="sidebar-header">
             {showLabels ? (
               <span className="sidebar-brand">
-                <img src="/icon.png" alt="" className="sidebar-brand-icon" />
-                ADA AI
+                <img src="/logo.png" alt="" className="sidebar-brand-icon" />
+                <span className="sidebar-brand-text">ADA AI</span>
               </span>
             ) : (
               <button type="button" className="sidebar-expand-btn" onClick={() => setExpanded(true)} aria-label="Expand sidebar">
-                <IconChevronRight />
+                <img src="/logo.png" alt="ADA AI" className="sidebar-brand-icon" />
               </button>
             )}
             {expanded && !mobileOpen && (
@@ -158,8 +158,9 @@ export default function Sidebar() {
           .sidebar.mobile-open .sidebar-label { display: block; }
           .sidebar-inner { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0.75rem 0; }
           .sidebar-header { display: flex; align-items: center; justify-content: space-between; padding: 0 0.75rem 1rem; min-height: 40px; }
-          .sidebar-brand { font-weight: 700; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 0.5rem; color: var(--text); }
-          .sidebar-brand-icon { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
+          .sidebar-brand { display: flex; align-items: center; gap: 0.5rem; color: var(--text); font-weight: 700; letter-spacing: 0.01em; }
+          .sidebar-brand-text { white-space: nowrap; }
+          .sidebar-brand-icon { width: 26px; height: 26px; object-fit: contain; }
           .sidebar-expand-btn, .sidebar-collapse-btn { padding: 0.35rem 0.5rem; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
           .sidebar-expand-btn:hover, .sidebar-collapse-btn:hover { color: var(--text); }
           .sidebar-nav { display: flex; flex-direction: column; gap: 0.25rem; padding: 0 0.5rem; flex: 1; overflow-y: auto; }
@@ -182,6 +183,7 @@ export default function Sidebar() {
             .sidebar.expanded .sidebar-collapse-btn { display: none; }
             .sidebar .sidebar-label { display: block !important; }
             .sidebar-link, .sidebar-user { font-size: 1rem; }
+            .sidebar-brand-icon { width: 24px; height: 24px; }
           }
           @media (min-width: 900px) {
             .sidebar-mobile-toggle { display: none; }

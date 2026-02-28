@@ -34,6 +34,10 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-box card">
+        <div className="login-brand">
+          <img src="/icon.png" alt="ADA AI" className="login-brand-icon" />
+          <span>ADA AI</span>
+        </div>
         <h1>{mode === 'login' ? 'Log in' : 'Sign up'}</h1>
         <p className="login-hint">
           {mode === 'login'
@@ -111,6 +115,8 @@ export default function LoginPage() {
       <style>{`
         .login-page { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; padding: 2rem 0; }
         .login-box { width: 100%; max-width: 400px; padding: 1.75rem; }
+        .login-brand { display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 600; margin-bottom: 0.75rem; }
+        .login-brand-icon { width: 32px; height: 32px; object-fit: contain; }
         .login-box h1 { font-size: 1.5rem; margin: 0 0 0.35rem; }
         .login-hint { color: var(--text-muted); font-size: 0.9rem; margin: 0 0 1.25rem; }
         .login-box form { display: flex; flex-direction: column; gap: 1rem; }
@@ -119,6 +125,10 @@ export default function LoginPage() {
         .link-btn { background: none; border: none; color: var(--accent); font-size: inherit; padding: 0; }
         .link-btn:hover { text-decoration: underline; }
         .login-back { margin-top: 1rem; font-size: 0.9rem; }
+        @media (max-width: 480px) {
+          .login-box { padding: 1.5rem; }
+          .login-brand-icon { width: 28px; height: 28px; }
+        }
       `}</style>
     </div>
   );

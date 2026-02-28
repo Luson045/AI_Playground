@@ -15,9 +15,9 @@ export default function LandingPage() {
   return (
     <div className="landing">
       <section className="landing-hero">
-        {/* <div className="landing-logo-wrap">
-          <img src="/icon.png" alt="" className="landing-logo" />
-        </div> */}
+        <div className="landing-logo-wrap">
+          <img src="/icon.png" alt="ADA AI" className="landing-logo" />
+        </div>
         <p className="landing-tagline">Advertisement Agent AI</p>
         <h1 className="landing-title">
           Find what you need, <span className="landing-accent">faster</span>
@@ -27,9 +27,11 @@ export default function LandingPage() {
         </p>
         <div className="landing-cta">
           <Link to="/chat" className="btn btn-primary landing-btn landing-btn-primary">
+            <IconChat />
             Start exploring
           </Link>
           <Link to="/market" className="btn btn-ghost landing-btn">
+            <IconCart />
             Browse marketplace
           </Link>
         </div>
@@ -58,8 +60,8 @@ export default function LandingPage() {
       <style>{`
         .landing { padding: 2rem 1.25rem 4rem; max-width: 1080px; margin: 0 auto; }
         .landing-hero { text-align: center; padding: 2rem 0 3.5rem; }
-        .landing-logo-wrap { margin-bottom: 0.5rem; }
-        .landing-logo { width: 80px; height: 80px; object-fit: contain; }
+        .landing-logo-wrap { margin-bottom: 0.75rem; display: flex; justify-content: center; }
+        .landing-logo { width: min(200px, 70vw); height: auto; object-fit: contain; }
         .landing-tagline { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 0 0 0.75rem; }
         .landing-title { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; margin: 0 0 1rem; letter-spacing: -0.03em; line-height: 1.15; color: var(--text); }
         .landing-accent { background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
