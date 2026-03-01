@@ -70,6 +70,33 @@ const STOPWORDS = new Set([
   'some', 'any', 'anything', 'something', 'stuff', 'items', 'product', 'products'
 ]);
 
+const CATEGORY_SYNONYMS = {
+  food: ['pastry', 'bakery', 'snack', 'meal', 'dessert', 'cafe', 'restaurant', 'bake', 'baked'],
+  pastry: ['dessert', 'bakery', 'sweet', 'cake', 'tart', 'donut', 'croissant'],
+  pizza: ['pizzeria', 'slice', 'italian'],
+  coffee: ['cafe', 'espresso', 'latte', 'cappuccino'],
+  tea: ['chai', 'herbal', 'green', 'green tea'],
+  phone: ['smartphone', 'mobile'],
+  laptop: ['notebook', 'ultrabook'],
+  headphone: ['headphones', 'earphones', 'earbuds', 'audio'],
+  jersey: ['shirt', 'tshirt', 'apparel', 'sportswear'],
+  shoes: ['footwear', 'sneakers', 'trainers'],
+  sunglasses: ['shades', 'eyewear', 'glasses'],
+  watch: ['wristwatch', 'smartwatch', 'timepiece'],
+  bag: ['backpack', 'handbag', 'satchel', 'tote'],
+  perfume: ['fragrance', 'scent'],
+  skincare: ['serum', 'moisturizer', 'cleanser'],
+};
+
+const CATEGORY_GROUPS = {
+  food: ['food', 'pastry', 'bakery', 'dessert', 'snack', 'meal', 'pizza', 'burger', 'cafe', 'restaurant', 'tea', 'coffee'],
+  apparel: ['jersey', 'shirt', 'tshirt', 'apparel', 'clothing', 'hoodie', 'jacket', 'jeans', 'shoes', 'sneakers'],
+  electronics: ['phone', 'smartphone', 'laptop', 'tablet', 'earbuds', 'headphone', 'camera', 'charger'],
+  beauty: ['skincare', 'makeup', 'cosmetic', 'lotion', 'serum', 'perfume'],
+  home: ['furniture', 'sofa', 'chair', 'table', 'decor', 'kitchen', 'appliance'],
+  accessories: ['sunglasses', 'shades', 'eyewear', 'watch', 'bag', 'backpack', 'handbag'],
+};
+
 function normalizeToken(token) {
   if (token.length > 3 && token.endsWith('s')) return token.slice(0, -1);
   return token;
@@ -83,6 +110,58 @@ function extractKeywords(text) {
     .filter((t) => t.length >= 3 && !STOPWORDS.has(t))
     .map(normalizeToken);
   return [...new Set(tokens)];
+}
+
+function expandKeywords(keywords = []) {
+  const expanded = new Set();
+  for (const kw of keywords) {
+    expanded.add(kw);
+    const synonyms = CATEGORY_SYNONYMS[kw];
+    if (synonyms) {
+      for (const syn of synonyms) {
+        syn
+          .toLowerCase()
+          .split(/\s+/)
+          .filter(Boolean)
+          .forEach((t) => expanded.add(normalizeToken(t)));
+      }
+    }
+  }
+  return [...expanded];
+}
+
+function buildTokenSet(text) {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9?\s-]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(normalizeToken)
+  );
+}
+
+function detectGroups(tokens = []) {
+  const matches = new Set();
+  for (const [group, terms] of Object.entries(CATEGORY_GROUPS)) {
+    for (const term of terms) {
+      const norm = normalizeToken(term);
+      if (tokens.includes(norm)) {
+        matches.add(group);
+        break;
+      }
+    }
+  }
+  return matches;
+}
+
+function computeLexicalScore(queryTokens, productTokens) {
+  if (!queryTokens.length) return 0;
+  let overlap = 0;
+  for (const kw of queryTokens) {
+    if (productTokens.has(kw)) overlap += 1;
+  }
+  return overlap / Math.max(1, queryTokens.length);
 }
 
 function keywordOverlapCount(queryKeywords, product) {
@@ -156,6 +235,10 @@ async function searchOne(query, limit = 5) {
 const RELEVANCE_THRESHOLD = 0.48;
 const LOCATION_SIM_THRESHOLD = 0.62;
 const SCORE_MARGIN_FACTOR = 0.9;
+const HIGH_SEMANTIC_THRESHOLD = 0.62;
+const LOW_SEMANTIC_THRESHOLD = 0.4;
+const MIN_LEXICAL_SCORE_PRIMARY = 0.2;
+const MIN_LEXICAL_SCORE_EXPANDED = 0.1;
 
 function cosineSimilarity(a = [], b = []) {
   if (!a.length || !b.length || a.length !== b.length) return 0;
@@ -201,6 +284,22 @@ export async function searchWithVariations(userMessage, limit = 5, userId = null
   const variations = await generateQueryVariations(seedMessage);
   const boosted = buildKeywordBoostQuery(seedMessage);
   if (boosted && !variations.includes(boosted)) variations.push(boosted);
+  const seedKeywords = extractKeywords(seedMessage);
+  const expandedSeedKeywords = expandKeywords(seedKeywords);
+  const synonymVariations = [];
+  for (const kw of seedKeywords) {
+    const synonyms = CATEGORY_SYNONYMS[kw];
+    if (!synonyms) continue;
+    for (const syn of synonyms) {
+      if (synonymVariations.length >= 3) break;
+      const pattern = new RegExp(`\b${kw}\b`, 'i');
+      if (pattern.test(seedMessage)) {
+        const variant = seedMessage.replace(pattern, syn);
+        if (!variations.includes(variant)) synonymVariations.push(variant);
+      }
+    }
+  }
+  if (synonymVariations.length) variations.push(...synonymVariations);
   thinking.push({ type: 'variations', queries: variations });
 
   let userLocationVector = null;
@@ -217,19 +316,26 @@ export async function searchWithVariations(userMessage, limit = 5, userId = null
 
   const seen = new Map();
   let qdrantFailed = false;
-  for (const q of variations) {
-    try {
-      const hits = await searchOne(q, limit * 2);
-      thinking.push({ type: 'search', query: q, count: hits.length });
-      for (const { id, score } of hits) {
-        if (!seen.has(id) || seen.get(id).score < score) {
-          seen.set(id, { id, score });
-        }
+  const searchJobs = variations.map(async (q) => {
+    const hits = await searchOne(q, limit * 2);
+    return { query: q, hits };
+  });
+  const settled = await Promise.allSettled(searchJobs);
+  const fulfilled = settled.filter((r) => r.status === 'fulfilled');
+  const rejected = settled.filter((r) => r.status === 'rejected');
+  if (fulfilled.length === 0) {
+    qdrantFailed = true;
+    thinking.push({ type: 'fallback', message: 'Search service unavailable, showing latest products.' });
+  } else if (rejected.length > 0) {
+    thinking.push({ type: 'search', message: 'Some search variations failed, using available results.' });
+  }
+  for (const item of fulfilled) {
+    const { query, hits } = item.value;
+    thinking.push({ type: 'search', query, count: hits.length });
+    for (const { id, score } of hits) {
+      if (!seen.has(id) || seen.get(id).score < score) {
+        seen.set(id, { id, score });
       }
-    } catch (err) {
-      qdrantFailed = true;
-      thinking.push({ type: 'fallback', message: 'Search service unavailable, showing latest products.' });
-      break;
     }
   }
 
@@ -242,7 +348,8 @@ export async function searchWithVariations(userMessage, limit = 5, userId = null
   const filteredByScore = withScores.filter(([, data]) => data.score >= dynamicCutoff);
   const sorted = (filteredByScore.length > limit ? filteredByScore.slice(0, limit) : filteredByScore).map(([id]) => id);
   const scoreById = new Map(filteredByScore.map(([id, data]) => [id, data.score]));
-  const queryKeywords = extractKeywords(seedMessage);
+  const queryKeywords = expandedSeedKeywords;
+  const queryGroups = detectGroups(queryKeywords);
 
   let products = [];
   let isFallback = false;
@@ -253,10 +360,25 @@ export async function searchWithVariations(userMessage, limit = 5, userId = null
     const order = new Map(sorted.map((id, i) => [id, i]));
     products = rankByLocation(products, userLocationVector, order);
     if (queryKeywords.length) {
+      const primaryKeywords = seedKeywords;
+      const expandedKeywords = queryKeywords;
       const filtered = products.filter((p) => {
-        const overlap = keywordOverlapCount(queryKeywords, p);
         const score = scoreById.get(p.qdrantId) ?? 0;
-        return overlap > 0 && score >= dynamicCutoff;
+        const blob = `${p?.name || ''} ${p?.category || ''} ${p?.description || ''}`;
+        const productTokens = buildTokenSet(blob);
+        const lexPrimary = computeLexicalScore(primaryKeywords, productTokens);
+        const lexExpanded = computeLexicalScore(expandedKeywords, productTokens);
+        const productGroups = detectGroups([...productTokens]);
+        const groupOverlap = [...queryGroups].some((g) => productGroups.has(g));
+        const hasGroupMismatch = queryGroups.size > 0 && productGroups.size > 0 && !groupOverlap;
+
+        if (hasGroupMismatch && score < HIGH_SEMANTIC_THRESHOLD) return false;
+        if (score >= HIGH_SEMANTIC_THRESHOLD) return true;
+        if (score < LOW_SEMANTIC_THRESHOLD) return false;
+
+        if (lexPrimary >= MIN_LEXICAL_SCORE_PRIMARY) return true;
+        if (groupOverlap && lexExpanded >= MIN_LEXICAL_SCORE_EXPANDED) return true;
+        return false;
       });
       if (filtered.length === 0) {
         isFallback = true;

@@ -16,22 +16,144 @@ import UserProfilePage from './pages/UserProfilePage';
 import MessagesPage from './pages/MessagesPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from "@vercel/speed-insights/react"
 import RatingPopup from './components/RatingPopup';
+import Seo from './components/Seo';
 function AppRoutes() {
   const { user } = useAuth();
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to="/chat" replace /> : <LandingPage />} />
-      <Route path="/chat" element={<ChatPage />} />
-      <Route path="/market" element={<MarketPage />} />
-      <Route path="/about" element={<AboutPage />} />
-      <Route path="/explore" element={<ExplorePage />} />
-      <Route path="/explore/:id" element={<UserProfilePage />} />
-      <Route path="/messages" element={user ? <MessagesPage /> : <Navigate to="/login" replace />} />
-      <Route path="/login" element={user ? <Navigate to="/chat" replace /> : <LoginPage />} />
-      <Route path="/upload" element={user ? <UploadPage /> : <Navigate to="/login" replace />} />
-      <Route path="/dashboard" element={user ? <DashboardPage /> : <Navigate to="/login" replace />} />
-      <Route path="*" element={<NotFoundPage />} />
+      <Route
+        path="/"
+        element={
+          user ? (
+            <Navigate to="/chat" replace />
+          ) : (
+            <>
+              <Seo
+                title="Discover products faster"
+                description="Chat your way to products from real sellers with ADA AI, the advertisement agent that helps you find what you need faster."
+              />
+              <LandingPage />
+            </>
+          )
+        }
+      />
+      <Route
+        path="/chat"
+        element={
+          <>
+            <Seo title="Chat search" noIndex />
+            <ChatPage />
+          </>
+        }
+      />
+      <Route
+        path="/market"
+        element={
+          <>
+            <Seo
+              title="Marketplace"
+              description="Browse products from real sellers, compare options, and connect directly with the marketplace on ADA AI."
+            />
+            <MarketPage />
+          </>
+        }
+      />
+      <Route
+        path="/about"
+        element={
+          <>
+            <Seo
+              title="About"
+              description="Learn how ADA AI helps people discover products faster with conversational search and real seller listings."
+            />
+            <AboutPage />
+          </>
+        }
+      />
+      <Route
+        path="/explore"
+        element={
+          <>
+            <Seo
+              title="Explore sellers"
+              description="Explore featured sellers and product collections curated by ADA AI."
+            />
+            <ExplorePage />
+          </>
+        }
+      />
+      <Route
+        path="/explore/:id"
+        element={
+          <>
+            <Seo title="Seller profile" noIndex />
+            <UserProfilePage />
+          </>
+        }
+      />
+      <Route
+        path="/messages"
+        element={
+          user ? (
+            <>
+              <Seo title="Messages" noIndex />
+              <MessagesPage />
+            </>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          user ? (
+            <Navigate to="/chat" replace />
+          ) : (
+            <>
+              <Seo title="Log in" noIndex />
+              <LoginPage />
+            </>
+          )
+        }
+      />
+      <Route
+        path="/upload"
+        element={
+          user ? (
+            <>
+              <Seo title="Upload product" noIndex />
+              <UploadPage />
+            </>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          user ? (
+            <>
+              <Seo title="Dashboard" noIndex />
+              <DashboardPage />
+            </>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="*"
+        element={
+          <>
+            <Seo title="Page not found" noIndex />
+            <NotFoundPage />
+          </>
+        }
+      />
     </Routes>
   );
 }
@@ -50,6 +172,7 @@ function AppContent() {
       </main>
       {showRating && <RatingPopup />}
       <Analytics />
+      <SpeedInsights />
     </div>
   );
 }
